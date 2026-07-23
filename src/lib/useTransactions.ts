@@ -1,35 +1,61 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { supabase } from "./supabase";
 import { Transaction } from "./types";
-
-const STORAGE_KEY = "household-budget-transactions";
 
 export function useTransactions() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration from localStorage after mount
-      if (raw) setTransactions(JSON.parse(raw));
-    } catch {
-      // ignore corrupted storage
-    }
-    setLoaded(true);
+    let active = true;
+    (async () => {
+      const { data, error } = await supabase
+        .from("transactions")
+        .select("id, date, type, category, amount, memo")
+        .order("date", { ascending: false })
+        .order("created_at", { ascending: false });
+
+      if (!active) return;
+      if (error) {
+        console.error("거래 내역을 불러오지 못했습니다:", error.message);
+      } else if (data) {
+        setTransactions(data as Transaction[]);
+      }
+      setLoaded(true);
+    })();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
-  useEffect(() => {
-    if (loaded) localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
-  }, [transactions, loaded]);
+  const addTransaction = async (t: Omit<Transaction, "id">) => {
+    const { data, error } = await supabase
+      .from("transactions")
+      .insert(t)
+      .select("id, date, type, category, amount, memo")
+      .single();
 
-  const addTransaction = (t: Omit<Transaction, "id">) => {
-    setTransactions((prev) => [{ ...t, id: crypto.randomUUID() }, ...prev]);
+    if (error) {
+      console.error("저장에 실패했습니다:", error.message);
+      return;
+    }
+    if (data) {
+      setTransactions((prev) => [data as Transaction, ...prev]);
+    }
   };
 
-  const removeTransaction = (id: string) => {
-    setTransactions((prev) => prev.filter((t) => t.id !== id));
+  const removeTransaction = async (id: string) => {
+    const prev = transactions;
+    setTransactions((cur) => cur.filter((t) => t.id !== id));
+
+    const { error } = await supabase.from("transactions").delete().eq("id", id);
+    if (error) {
+      console.error("삭제에 실패했습니다:", error.message);
+      setTransactions(prev); // 실패 시 롤백
+    }
   };
 
   return { transactions, addTransaction, removeTransaction, loaded };
