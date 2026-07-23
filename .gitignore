@@ -40,6 +40,7 @@ yarn-error.log*
 /.claude
 /dev-server.cmd
 /deploy.cmd
+/vercel-deploy.cmd
 
 # typescript
 *.tsbuildinfo
