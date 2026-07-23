@@ -3,4 +3,5 @@ node_modules
 .git
 .claude
 *.cmd
+.env*
 tsconfig.tsbuildinfo

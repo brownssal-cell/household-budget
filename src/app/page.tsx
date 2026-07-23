@@ -4,7 +4,10 @@ import { useMemo, useState } from "react";
 import TransactionForm from "@/components/TransactionForm";
 import TransactionList from "@/components/TransactionList";
 import SummaryCards from "@/components/SummaryCards";
+import MonthlyStats from "@/components/MonthlyStats";
 import { useTransactions } from "@/lib/useTransactions";
+
+type View = "list" | "stats";
 
 function currentMonth() {
   return new Date().toISOString().slice(0, 7); // YYYY-MM
@@ -14,6 +17,7 @@ export default function Home() {
   const { transactions, addTransaction, removeTransaction, loaded } =
     useTransactions();
   const [month, setMonth] = useState(currentMonth());
+  const [view, setView] = useState<View>("list");
 
   const filtered = useMemo(
     () => transactions.filter((t) => t.date.startsWith(month)),
@@ -35,26 +39,67 @@ export default function Home() {
     <div className="mx-auto w-full max-w-md px-4 py-8 flex flex-col gap-6">
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-bold">간단 가계부</h1>
-        <input
-          type="month"
-          value={month}
-          onChange={(e) => setMonth(e.target.value)}
-          className="rounded-md border border-black/10 dark:border-white/15 bg-transparent px-2 py-1 text-sm"
-        />
+        {view === "list" && (
+          <input
+            type="month"
+            value={month}
+            onChange={(e) => setMonth(e.target.value)}
+            className="rounded-md border border-black/10 dark:border-white/15 bg-transparent px-2 py-1 text-sm"
+          />
+        )}
       </header>
 
-      <SummaryCards income={income} expense={expense} />
-
-      <TransactionForm onAdd={addTransaction} />
-
-      <section>
-        <h2 className="text-sm font-medium text-black/60 dark:text-white/60 mb-1">
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setView("list")}
+          className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${
+            view === "list"
+              ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
+              : "bg-black/5 dark:bg-white/10"
+          }`}
+        >
           내역
-        </h2>
-        {loaded && (
-          <TransactionList transactions={filtered} onRemove={removeTransaction} />
-        )}
-      </section>
+        </button>
+        <button
+          type="button"
+          onClick={() => setView("stats")}
+          className={`flex-1 rounded-lg py-2 text-sm font-medium transition ${
+            view === "stats"
+              ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
+              : "bg-black/5 dark:bg-white/10"
+          }`}
+        >
+          월별 통계
+        </button>
+      </div>
+
+      {view === "list" ? (
+        <>
+          <SummaryCards income={income} expense={expense} />
+
+          <TransactionForm onAdd={addTransaction} />
+
+          <section>
+            <h2 className="text-sm font-medium text-black/60 dark:text-white/60 mb-1">
+              내역
+            </h2>
+            {loaded && (
+              <TransactionList
+                transactions={filtered}
+                onRemove={removeTransaction}
+              />
+            )}
+          </section>
+        </>
+      ) : (
+        <section>
+          <h2 className="text-sm font-medium text-black/60 dark:text-white/60 mb-2">
+            월별 통계
+          </h2>
+          {loaded && <MonthlyStats transactions={transactions} />}
+        </section>
+      )}
     </div>
   );
 }
